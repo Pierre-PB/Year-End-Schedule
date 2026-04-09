@@ -652,19 +652,24 @@ let syncTimer=null;
 function loadCfg(){try{return JSON.parse(localStorage.getItem(CFG_KEY))||{};}catch(e){return{};}}
 function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(CFG));}
 
-// ── NPOINT API ────────────────────────────────────────────────────────
+// ── JSONBIN API ────────────────────────────────────────────────────────
+const JSONBIN_URL='https://api.jsonbin.io/v3/b/69d7e0f8856a68218916fe81';
+const JSONBIN_KEY='$2a$10$1n4imevE0XCXKRi9tNTjluzr0DTERFys3k/f/GgjCngzvb9lofi8m';
+
 async function npRead(id){
-  const r=await fetch(`${NPOINT}/${id}`);
-  if(!r.ok) throw new Error(`HTTP ${r.status} — ID introuvable`);
+  const r=await fetch(JSONBIN_URL+'/latest',{
+    headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false'}
+  });
+  if(!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
 async function npWrite(id,data){
-  const r=await fetch(`${NPOINT}/${id}`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
+  const r=await fetch(JSONBIN_URL,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},
     body:JSON.stringify(data)
   });
-  if(!r.ok) throw new Error(`HTTP ${r.status} — écriture échouée`);
+  if(!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
 
@@ -791,25 +796,11 @@ async function pushSaved(){
   lastPushTime=Date.now();
   setSyncState('syncing','Saving...');
   try{
-    const r=await fetch(JSONBIN_URL,{
-      method:'PUT',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Master-Key':JSONBIN_KEY,
-        'X-Bin-Meta':'false'
-      },
-      body:JSON.stringify(SAVED)
-    });
-    const txt=await r.text();
-    if(!r.ok){
-      console.error('JSONbin error',r.status,txt);
-      throw new Error('HTTP '+r.status+': '+txt.substring(0,100));
-    }
+    await npWrite(CFG.bin, SAVED);
     setSyncState('ok','Saved — '+fmtTime());
   }catch(e){
-    setSyncState('error','Save failed');
+    setSyncState('error','Save failed: '+e.message);
     showToast('⚠ Save failed: '+e.message);
-    console.error('pushSaved error:',e);
   }
 }
 
