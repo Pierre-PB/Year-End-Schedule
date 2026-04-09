@@ -206,8 +206,8 @@ nav{padding:8px;flex:1}
 .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
 .search-input::placeholder{color:var(--text3)}
 .filter-select{
-  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);
-  color:var(--text2);padding:7px 10px;font-family:var(--font);font-size:12px;
+  background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);
+  color:var(--text);padding:7px 10px;font-family:var(--font);font-size:12px;
   outline:none;cursor:pointer;transition:border .15s;
 }
 .filter-select:focus{border-color:var(--accent)}
@@ -239,7 +239,7 @@ nav{padding:8px;flex:1}
 table{width:100%;border-collapse:collapse}
 thead th{
   background:var(--surface2);padding:10px 14px;text-align:left;
-  font-size:10px;font-weight:700;color:var(--text2);
+  font-size:11px;font-weight:700;color:var(--text);letter-spacing:.5px;
   text-transform:uppercase;letter-spacing:.8px;
   border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;
   transition:color .15s;
@@ -248,29 +248,29 @@ thead th:hover{color:var(--text2)}
 thead th.sorted{color:var(--accent)}
 tbody tr{border-bottom:1px solid var(--border);transition:background .12s}
 tbody tr:last-child{border-bottom:none}
-tbody tr:hover{background:var(--surface2)}
-tbody tr.done-row{opacity:.5}
-tbody td{padding:10px 14px;font-size:12px;color:var(--text2);vertical-align:middle}
-tbody td:nth-child(2){color:var(--text);max-width:300px}
+tbody tr:hover{background:rgba(0,174,219,0.08)}
+tbody tr.done-row{opacity:.45}
+tbody td{padding:10px 14px;font-size:13px;color:var(--text);vertical-align:middle}
+tbody td:nth-child(2){color:#ffffff;max-width:300px;font-weight:500}
 .task-name{cursor:pointer;line-height:1.45;font-weight:400}
-.task-name:hover{color:var(--accent)}
-.num-cell{font-family:var(--mono);font-size:10px;color:var(--text2);font-weight:500}
+.task-name:hover{color:#00AEDB}
+.num-cell{font-family:var(--mono);font-size:11px;color:var(--text);font-weight:600}
 .resp-tag{
-  display:inline-block;background:var(--surface3);
-  border:1px solid var(--border);
-  border-radius:6px;padding:2px 7px;font-size:10px;color:var(--text2);white-space:nowrap;
+  display:inline-block;background:rgba(0,174,219,0.15);
+  border:1px solid rgba(0,174,219,0.3);
+  border-radius:6px;padding:2px 8px;font-size:11px;color:#c8e8f5;white-space:nowrap;
 }
-.date-cell{font-family:var(--mono);font-size:11px;white-space:nowrap;color:var(--text)}
+.date-cell{font-family:var(--mono);font-size:12px;white-space:nowrap;color:var(--text);font-weight:500}
 .date-close{color:var(--amber)!important}
 .date-urgent{color:var(--red)!important}
-.by-tag{font-size:9px;color:var(--text3);display:block;margin-top:2px;font-family:var(--mono)}
+.by-tag{font-size:11px;color:#a0c8e0;display:block;margin-top:3px;font-family:var(--mono);font-weight:500}
 .badge{
   display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;
   padding:3px 9px;border-radius:99px;white-space:nowrap;cursor:pointer;
   border:none;font-family:var(--font);letter-spacing:.3px;
 }
 .badge-upcoming{background:var(--accent-soft);color:var(--accent)}
-.badge-done{background:var(--green-soft);color:var(--green)}
+.badge-done{background:rgba(120,190,32,0.2);color:#a8e060;font-weight:700}
 .badge-late{background:var(--red-soft);color:var(--red)}
 .badge-today{background:var(--amber-soft);color:var(--amber)}
 .badge-none{background:var(--surface3);color:var(--text3)}
@@ -760,29 +760,41 @@ function setSyncState(state,msg){
   document.getElementById('sync-dot').className='sync-dot '+state;
   document.getElementById('sync-text').textContent=msg;
 }
+let lastPushTime = 0;
+const PUSH_LOCK_MS = 15000; // block pull for 15s after a push
+
+function fmtTime(){return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+
 async function syncNow(){
   if(IS_DEMO){setSyncState('offline','Demo mode (local)');return;}
-  setSyncState('syncing','Synchronisation...');
+  // Don't pull right after a push — would overwrite local changes
+  if(Date.now()-lastPushTime < PUSH_LOCK_MS){
+    setSyncState('ok','Saved — '+fmtTime());return;
+  }
+  setSyncState('syncing','Syncing...');
   try{
     const remote=await npRead(CFG.bin);
-    SAVED=remote||{tasks:{},activity:[]};
-    if(!SAVED.tasks)SAVED.tasks={};
-    if(!SAVED.activity)SAVED.activity=[];
-    buildTasks();applyFilters();renderTimeline();renderStats();renderActivity();updateSidebar();
-    setSyncState('ok','Sync '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+    if(remote && remote.tasks){
+      SAVED=remote;
+      if(!SAVED.tasks)SAVED.tasks={};
+      if(!SAVED.activity)SAVED.activity=[];
+      buildTasks();applyFilters();renderTimeline();renderStats();renderActivity();updateSidebar();
+    }
+    setSyncState('ok','Sync '+fmtTime());
   }catch(e){
-    setSyncState('error','Erreur sync');
+    setSyncState('error','Sync error');
   }
 }
 async function pushSaved(){
   if(IS_DEMO){localStorage.setItem('yesss_demo_v2',JSON.stringify(SAVED));return;}
-  setSyncState('syncing','Envoi...');
+  lastPushTime=Date.now();
+  setSyncState('syncing','Saving...');
   try{
     await npWrite(CFG.bin,SAVED);
-    setSyncState('ok','Sync '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+    setSyncState('ok','Saved — '+fmtTime());
   }catch(e){
-    setSyncState('error','Erreur sauvegarde');
-    showToast('⚠ Sync échouée : '+e.message);
+    setSyncState('error','Save failed');
+    showToast('⚠ Sync failed: '+e.message);
   }
 }
 
@@ -804,12 +816,12 @@ function computeStatus(t){
 function fmtDate(d){
   if(!d) return'—';
   const[y,m,dd]=d.split('-');
-  const M=['Jan','Fév','Mar','Avr','May','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return dd+' '+M[parseInt(m)-1]+' '+y;
 }
 function fmtDT(iso){
   if(!iso) return'';
-  try{return new Date(iso).toLocaleString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+  try{return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
   catch(e){return iso;}
 }
 function daysDiff(target){
@@ -867,14 +879,14 @@ function renderTaskTable(){
     let dc='';
     if(st!=='Done'&&diff!==null){if(diff<=7)dc='date-urgent';else if(diff<=21)dc='date-close';}
     const bc={Done:'badge-done',Late:'badge-late',Today:'badge-today',Upcoming:'badge-upcoming','':'badge-none'}[st]||'badge-none';
-    const bl={Done:'✓ Fait',Late:'⚠ Late',Today:'→ Auj.',Upcoming:'⏳ Upcoming','':'—'}[st]||'—';
-    const byStr=t.by?`<span class="by-tag">par ${t.by}</span>`:'';
+    const bl={Done:'✓ Done',Late:'⚠ Late',Today:'→ Today',Upcoming:'⏳ Upcoming','':'—'}[st]||'—';
+    const byStr=t.by?`<span class="by-tag">by ${t.by}</span>`:'';
     return`<tr class="${st==='Done'?'done-row':''}">
       <td class="num-cell">${t.num}</td>
       <td><span class="task-name" onclick="openModal(${t.num})">${t.task}</span></td>
       <td><span class="resp-tag">${t.responsible}</span></td>
       <td class="date-cell ${dc}">${fmtDate(t.target)}</td>
-      <td class="date-cell" style="color:var(--green)">${t.actual?fmtDate(t.actual):''}${byStr}</td>
+      <td class="date-cell" style="color:#a8e060;font-weight:500">${t.actual?fmtDate(t.actual):''}${byStr}</td>
       <td><button class="badge ${bc}" onclick="openModal(${t.num})">${bl}</button></td>
     </tr>`;
   }).join('');
@@ -911,7 +923,7 @@ function populateRespFilter(){
   const names=new Set();
   TASKS.forEach(t=>t.responsible.split(/[\/,&]/).map(s=>s.trim()).filter(Boolean).forEach(r=>names.add(r)));
   const sel=document.getElementById('f-resp');
-  sel.innerHTML='<option value="">Tous responsibles</option>';
+  sel.innerHTML='<option value="">All responsible</option>';
   [...names].sort().forEach(n=>{sel.innerHTML+=`<option value="${n}">${n}</option>`;});
 }
 
@@ -963,7 +975,7 @@ function renderStats(){
   const MN={'2026-04':'April','2026-05':'May','2026-06':'June','2026-07':'Juillet'};
   document.getElementById('stats-content').innerHTML=`
   <div class="stat-card">
-    <div class="stat-title">Tasks par responsible</div>
+    <div class="stat-title">Tasks by responsible</div>
     ${rA.map(([n,v])=>`<div class="bar-chart-item">
       <div class="bar-name" title="${n}">${n}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v.done/maxR*100)}%;background:var(--green)"></div></div>
