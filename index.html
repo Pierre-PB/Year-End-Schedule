@@ -1294,8 +1294,10 @@ async function saveModal(){
       }
     }
   } else if(!newActual && prevActual){
-    // Reopened: remove learned offset to revert to base
-    // Keep offset from previous years if available, but don't force current year's failed attempt
+    // Reopened: delete the learned offset so future years revert to base plan
+    if(SAVED.offsets && SAVED.offsets[t.num]!==undefined){
+      delete SAVED.offsets[t.num];
+    }
   }
 
   const action=newActual&&!prevActual?'marked as done':!newActual&&prevActual?'reopened':'updated';
