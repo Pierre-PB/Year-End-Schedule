@@ -868,7 +868,7 @@ async function syncNow(){
       }
       SAVED.tasks=merged;
       // Merge offsets: remote wins (it's authoritative)
-      if(remote.offsets) SAVED.offsets={...remote.offsets,...(SAVED.offsets||{})};
+      if(remote.offsets) SAVED.offsets={...(SAVED.offsets||{}),...remote.offsets};
       // Merge activity
       const all=[...(SAVED.activity||[]),...(remote.activity||[])];
       const seen=new Set();
