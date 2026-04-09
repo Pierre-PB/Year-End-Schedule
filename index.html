@@ -384,28 +384,10 @@ tbody td:nth-child(2){color:#ffffff;max-width:300px;font-weight:500}
     <div class="step-block">
       <div class="step-header">
         <div class="step-num">1</div>
-        <div class="step-title">Create the sync endpoint (admin only)</div>
-      </div>
-      <div class="step-hint">
-        Go to <a href="https://www.npoint.io" target="_blank">npoint.io</a>, paste this JSON into the editor, then click <strong>Save</strong>:
-        <div style="background:var(--surface3);border-radius:4px;padding:8px 10px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--amber);word-break:break-all">{"tasks":{},"activity":[]}</div>
-        You will get a URL like <code>https://api.npoint.io/abc123def456</code>. Copy the <strong>ID</strong> (the part after the last <code>/</code>).
-      </div>
-      <div class="inline-row">
-        <input class="setup-input" type="text" id="cfg-bin" placeholder="abc123def456  (npoint.io ID)" />
-        <button class="btn btn-primary btn-sm" onclick="testBin()">Test →</button>
-      </div>
-      <div id="bin-status" style="font-size:11px;margin-top:4px;min-height:16px"></div>
-    </div>
-
-    <div class="separator">then fill in for all team members</div>
-
-    <div class="step-block">
-      <div class="step-header">
-        <div class="step-num">2</div>
         <div class="step-title">Your first name (visible in team activity log)</div>
       </div>
       <input class="setup-input" type="text" id="cfg-user" placeholder="Pierre" />
+      <input type="hidden" id="cfg-bin" value="69d7e0f8856a68218916fe81" />
     </div>
 
     <div class="setup-actions">
@@ -705,7 +687,7 @@ function setStatus(el,msg,color){
 }
 
 async function connectAndStart(){
-  const bin=document.getElementById('cfg-bin').value.trim();
+  const bin='69d7e0f8856a68218916fe81';
   const user=document.getElementById('cfg-user').value.trim();
   const errEl=document.getElementById('setup-err');
   if(!bin){errEl.textContent='Entrez un Bin ID.';return;}
@@ -1135,7 +1117,7 @@ if(CFG.bin&&CFG.user){
       document.getElementById('setup-screen').style.display='flex';
       document.getElementById('cfg-bin').value=CFG.bin||'';
       document.getElementById('cfg-user').value=CFG.user||'';
-      document.getElementById('setup-err').textContent='Reconnection failed — please check the ID.';
+      document.getElementById('setup-err').textContent='Reconnection failed — please check your name and try again.';
     }
   })();
 }
