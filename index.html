@@ -165,8 +165,8 @@ tbody td:nth-child(2){color:#fff;max-width:300px;font-weight:500}
 .decade-table td{padding:6px 10px;font-size:11px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
   vertical-align:middle;white-space:nowrap;}
 .decade-table tr:last-child td{border-bottom:none}
-.decade-table td.task-col{color:#fff;font-weight:500;max-width:220px;white-space:normal;font-size:12px;min-width:200px}
-.decade-table td.task-col .task-num{font-family:var(--mono);font-size:9px;color:var(--text3);margin-right:4px}
+.decade-table td.task-col{color:#fff;font-weight:500;font-family:var(--font);max-width:220px;white-space:normal;font-size:13px;min-width:200px;line-height:1.45}
+.decade-table td.task-col .task-num{font-family:var(--mono);font-size:9px;color:var(--text3);margin-right:6px;opacity:0.6}
 .decade-cell{border-radius:4px;padding:4px 6px;font-family:var(--mono);font-size:10px;cursor:pointer;transition:opacity .15s;display:inline-block;width:100%;text-align:center}
 .decade-cell:hover{opacity:.8}
 .decade-cell.done{background:rgba(120,190,32,0.2);color:#a8e060}
@@ -450,7 +450,9 @@ tbody td:nth-child(2){color:#fff;max-width:300px;font-weight:500}
     </div>
     <div class="modal-field">
       <div class="modal-label">Target date</div>
-      <div class="modal-value" id="modal-target"></div>
+      <div class="modal-value" id="modal-target" style="display:none"></div>
+      <input class="modal-input" type="date" id="modal-custom-target" style="display:none" />
+      <div style="font-size:10px;color:var(--text3);margin-top:4px" id="modal-target-hint"></div>
     </div>
     <div id="modal-learn-info" class="info-box" style="display:none"></div>
     <div class="divider"></div>
@@ -494,7 +496,7 @@ const FISCAL_YEARS=[
 
 // Today & current FY detection
 const TODAY=new Date();
-const TODAY_STR=TODAY.toISOString().slice(0,10);
+const TODAY_STR=`${TODAY.getFullYear()}-${String(TODAY.getMonth()+1).padStart(2,'0')}-${String(TODAY.getDate()).padStart(2,'0')}`;
 function getCurrentFYIndex(){
   const m=TODAY.getMonth()+1,d=TODAY.getDate(),y=TODAY.getFullYear();
   // FY ends April 30 — if today is after April 30 we're in next FY
@@ -522,25 +524,29 @@ const EASTER={
 function addDays(dateStr,n){
   const d=new Date(dateStr+'T00:00:00');
   d.setDate(d.getDate()+n);
-  return d.toISOString().slice(0,10);
+  // Use local date to avoid UTC timezone shift (e.g. UTC+1 causes off-by-one)
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
 }
 function firstMondayOfMonth(year,month){
   const d=new Date(year,month-1,1);
   const dow=d.getDay();
   const offset=dow===1?0:(dow===0?1:8-dow);
   d.setDate(d.getDate()+offset);
-  return d.toISOString().slice(0,10);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function lastMondayOfMonth(year,month){
   const d=new Date(year,month,0); // last day of month
   const dow=d.getDay();
   d.setDate(d.getDate()-(dow===1?0:dow===0?6:dow-1));
-  return d.toISOString().slice(0,10);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function nextWeekday(dateStr){
   const d=new Date(dateStr+'T00:00:00');
   while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()+1);
-  return d.toISOString().slice(0,10);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function buildHolidays(year){
@@ -567,7 +573,7 @@ function buildHolidays(year){
   const xmas=new Date(`${year}-12-25T00:00:00`);
   let boxing=new Date(xmas);boxing.setDate(boxing.getDate()+1);
   while(boxing.getDay()===0||boxing.getDay()===6)boxing.setDate(boxing.getDate()+1);
-  uk.add(boxing.toISOString().slice(0,10));
+  uk.add(`${boxing.getFullYear()}-${String(boxing.getMonth()+1).padStart(2,'0')}-${String(boxing.getDate()).padStart(2,'0')}`);
 
   // France fixed
   [`${year}-01-01`,`${year}-05-01`,`${year}-05-08`,`${year}-07-14`,
@@ -639,12 +645,12 @@ function adjustDateForTeam(dateStr,teamType){
   let iterations=0;
   while(iterations++<30){
     const dow=d.getDay();
-    const ds=d.toISOString().slice(0,10);
+    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if(weekend&&(dow===0||dow===6)){d.setDate(d.getDate()+1);continue;}
     if(h.has(ds)){d.setDate(d.getDate()+1);continue;}
     break;
   }
-  return d.toISOString().slice(0,10);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function isHolidayAdjusted(baseDate,adjustedDate){
@@ -752,7 +758,13 @@ const MASTER=[
 function computeTargetDate(taskNum, fyIdx){
   const fy=FISCAL_YEARS[fyIdx];
   const baseOffset=BASE_OFFSETS[taskNum];
-  if(baseOffset===null||baseOffset===undefined) return{date:null,learned:false,adjusted:false};
+  if(baseOffset===null||baseOffset===undefined){
+    // Check for custom target in any FY's saved data
+    const k=taskKey(taskNum,fyIdx);
+    const s=SAVED.tasks[k]||{};
+    if(s.customTarget) return{date:s.customTarget,learned:false,adjusted:false,offset:null,teamType:'INT'};
+    return{date:null,learned:false,adjusted:false};
+  }
 
   // Check if we have a learned offset from a previous year
   let offset=baseOffset;
@@ -1242,9 +1254,22 @@ function openModal(num, fyIdx){
   document.getElementById('modal-task-name').textContent=`#${t.num} — ${t.task}`;
   document.getElementById('modal-fy-label').textContent=fy.label;
   document.getElementById('modal-resp').textContent=t.responsible;
-  document.getElementById('modal-target').textContent=t.target?`${fmtDate(t.target)} (${t.teamType} calendar)`:'Not set';
   const k=taskKey(num,fyIdx);
   const saved=SAVED.tasks[k]||{};
+  const hasBase=BASE_OFFSETS[t.num]!==null&&BASE_OFFSETS[t.num]!==undefined;
+  if(hasBase){
+    // Calculated target — show as read-only text
+    document.getElementById('modal-target').style.display='block';
+    document.getElementById('modal-target').textContent=t.target?`${fmtDate(t.target)} (${t.teamType} calendar)`:'Not set';
+    document.getElementById('modal-custom-target').style.display='none';
+    document.getElementById('modal-target-hint').textContent='';
+  } else {
+    // No base offset — allow manual entry
+    document.getElementById('modal-target').style.display='none';
+    document.getElementById('modal-custom-target').style.display='block';
+    document.getElementById('modal-custom-target').value=saved.customTarget||'';
+    document.getElementById('modal-target-hint').textContent='No scheduled date — enter a custom target date if needed.';
+  }
   document.getElementById('modal-actual').value=saved.actual||'';
   document.getElementById('modal-comment').value=saved.comment||'';
   document.getElementById('modal-lastby').textContent=saved.by?`Updated by ${saved.by} on ${fmtDT(saved.at)}`:'' ;
@@ -1277,7 +1302,9 @@ async function saveModal(){
   const newActual=document.getElementById('modal-actual').value;
   const comment=document.getElementById('modal-comment').value.trim();
 
-  SAVED.tasks[k]={actual:newActual,comment,by:CFG.user||'?',at:new Date().toISOString()};
+  const customTargetEl=document.getElementById('modal-custom-target');
+  const customTarget=customTargetEl.style.display!=='none'?customTargetEl.value:'';
+  SAVED.tasks[k]={actual:newActual,comment,by:CFG.user||'?',at:new Date().toISOString(),...(customTarget?{customTarget}:{})};
 
   // LEARNING ALGORITHM: if task completed, update offset for future years
   if(newActual && t.target){
