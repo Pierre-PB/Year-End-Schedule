@@ -605,13 +605,17 @@ function getHolidays(year){
 // ═══════════════════════════════════════════════════════════
 function getTeamType(responsible){
   const r=(responsible||'').toLowerCase();
+  // Pierre, Cédric, Liam: based in France/Tunisia management — work any day, no holiday restrictions
   if(r.includes('pierre')||r.includes('cédric')||r.includes('cedric')||r.includes('liam')) return 'INT';
+  // TN Team: work weekends, respect Tunisian holidays
   if(r.includes('tn team')||r.includes('marwa')||r.includes('abdul')||r.includes('soumaya')) return 'TN';
+  // French IT team: respect French holidays
   if(r.includes('fr it')||r.includes('florence')||r.includes('french it')) return 'FR';
+  // Everyone else: UK rules (Mon-Fri, UK holidays)
   return 'UK';
 }
 function teamLabel(type){
-  return{UK:'🇬🇧 UK',TN:'🇹🇳 TN',INT:'🌐 Int',FR:'🇫🇷 FR'}[type]||type;
+  return{UK:'🇬🇧 UK',TN:'🇹🇳 TN',INT:'🇫🇷 FR*',FR:'🇫🇷 FR'}[type]||type;
 }
 function teamClass(type){
   return{UK:'team-uk',TN:'team-tn',INT:'team-int',FR:'team-fr'}[type]||'';
