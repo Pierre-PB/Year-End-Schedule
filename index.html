@@ -743,7 +743,7 @@ function setSyncState(state,msg){
   document.getElementById('sync-text').textContent=msg;
 }
 let lastPushTime = 0;
-const PUSH_LOCK_MS = 15000; // block pull for 15s after a push
+const PUSH_LOCK_MS = 30000; // block pull for 30s after a push
 
 function fmtTime(){return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
 
@@ -757,9 +757,28 @@ async function syncNow(){
   try{
     const remote=await npRead(CFG.bin);
     if(remote && remote.tasks){
-      SAVED=remote;
-      if(!SAVED.tasks)SAVED.tasks={};
-      if(!SAVED.activity)SAVED.activity=[];
+      // Smart merge: keep most recent entry per task (compare timestamps)
+      const merged = {...SAVED.tasks};
+      for(const [num, remoteTask] of Object.entries(remote.tasks)){
+        const localTask = merged[num];
+        if(!localTask){
+          merged[num] = remoteTask; // remote has new task
+        } else {
+          // Keep whichever was updated most recently
+          const remoteTime = new Date(remoteTask.at||0).getTime();
+          const localTime = new Date(localTask.at||0).getTime();
+          if(remoteTime > localTime) merged[num] = remoteTask;
+        }
+      }
+      SAVED.tasks = merged;
+      // Merge activity (union, deduplicated by timestamp)
+      const allActivity = [...(SAVED.activity||[]), ...(remote.activity||[])];
+      const seen = new Set();
+      SAVED.activity = allActivity.filter(a=>{
+        const key = a.at+'_'+a.num;
+        if(seen.has(key)) return false;
+        seen.add(key); return true;
+      }).sort((a,b)=>a.at>b.at?1:-1).slice(-200);
       buildTasks();applyFilters();renderTimeline();renderStats();renderActivity();updateSidebar();
     }
     setSyncState('ok','Sync '+fmtTime());
@@ -772,11 +791,25 @@ async function pushSaved(){
   lastPushTime=Date.now();
   setSyncState('syncing','Saving...');
   try{
-    await npWrite(CFG.bin,SAVED);
+    const r=await fetch(JSONBIN_URL,{
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':JSONBIN_KEY,
+        'X-Bin-Meta':'false'
+      },
+      body:JSON.stringify(SAVED)
+    });
+    const txt=await r.text();
+    if(!r.ok){
+      console.error('JSONbin error',r.status,txt);
+      throw new Error('HTTP '+r.status+': '+txt.substring(0,100));
+    }
     setSyncState('ok','Saved — '+fmtTime());
   }catch(e){
     setSyncState('error','Save failed');
-    showToast('⚠ Sync failed: '+e.message);
+    showToast('⚠ Save failed: '+e.message);
+    console.error('pushSaved error:',e);
   }
 }
 
