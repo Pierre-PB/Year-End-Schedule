@@ -799,6 +799,26 @@ let syncTimer=null;
 
 function taskKey(num,fyIdx){return FISCAL_YEARS[fyIdx].id+'_'+num;}
 
+function recomputeOffsets(){
+  // Recompute all offsets from actual saved task data
+  // This ensures offsets are always derived from real completions, not stale cache
+  if(!SAVED.offsets) SAVED.offsets={};
+  FISCAL_YEARS.forEach((fy,fi)=>{
+    MASTER.forEach(m=>{
+      const k=taskKey(m.num,fi);
+      const s=SAVED.tasks[k]||{};
+      if(s.actual){
+        const diffMs=new Date(s.actual+'T00:00:00')-new Date(fy.close+'T00:00:00');
+        const realOffset=Math.round(diffMs/(1000*60*60*24));
+        // Only update if this is a past FY (so future FYs can learn from it)
+        if(fi<=currentFYIdx){
+          SAVED.offsets[m.num]=realOffset;
+        }
+      }
+    });
+  });
+}
+
 function buildTasks(fyIdx){
   const fi=fyIdx!==undefined?fyIdx:activeFYIdx;
   TASKS=MASTER.map(m=>{
@@ -874,6 +894,7 @@ async function syncNow(){
       const seen=new Set();
       SAVED.activity=all.filter(a=>{const k=a.at+'_'+a.num+'_'+a.fy;if(seen.has(k))return false;seen.add(k);return true;})
         .sort((a,b)=>a.at>b.at?1:-1).slice(-200);
+      recomputeOffsets(); // Re-derive offsets from merged task data
       buildTasks();applyFilters();renderDecade();updateSidebar();
     }
     setSyncState('ok','Sync '+fmtTime());
@@ -1352,6 +1373,7 @@ function startApp(){
   document.getElementById('user-label').textContent=CFG.user||'?';
   document.getElementById('user-avatar').textContent=(CFG.user||'?').substring(0,2).toUpperCase();
   initFYSelector();
+  recomputeOffsets(); // Always derive offsets from actual saved data
   buildTasks();applyFilters();renderDecade();updateSidebar();
   if(!IS_DEMO){syncNow();syncTimer=setInterval(syncNow,60000);}
   else setSyncState('offline','Demo mode (local)');
